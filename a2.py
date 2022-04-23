@@ -15,26 +15,27 @@ __version__ = 1.0
 # Uncomment this function when you have completed the Level class and are ready
 # to attempt the Model class.
 
-# def load_game(filename: str) -> list['Level']:
-#     """ Reads a game file and creates a list of all the levels in order.
 
-#     Parameters:
-#         filename: The path to the game file
+def load_game(filename: str) -> list['Level']:
+    """ Reads a game file and creates a list of all the levels in order.
 
-#     Returns:
-#         A list of all Level instances to play in the game
-#     """
-#     levels = []
-#     with open(filename, 'r') as file:
-#         for line in file:
-#             line = line.strip()
-#             if line.startswith('Maze'):
-#                 _, _, dimensions = line[5:].partition(' - ')
-#                 dimensions = [int(item) for item in dimensions.split()]
-#                 levels.append(Level(dimensions))
-#             elif len(line) > 0 and len(levels) > 0:
-#                 levels[-1].add_row(line)
-#     return levels
+    Parameters:
+        filename: The path to the game file
+
+    Returns:
+        A list of all Level instances to play in the game
+    """
+    levels = []
+    with open(filename, 'r') as file:
+        for line in file:
+            line = line.strip()
+            if line.startswith('Maze'):
+                _, _, dimensions = line[5:].partition(' - ')
+                dimensions = [int(item) for item in dimensions.split()]
+                levels.append(Level(dimensions))
+            elif len(line) > 0 and len(levels) > 0:
+                levels[-1].add_row(line)
+    return levels
 
 
 # Write your classes here
@@ -342,7 +343,7 @@ class Level:
         self.dimensions = dimenstions
         self.maze = Maze(self.dimensions)
         self.items = {}
-        self.item_pool = {'C': Coin, 'M': Potion,
+        self.item_pool = {'C': Coin, 'M': Potion, 'P': PLAYER,
                           'W': Water, 'A': Apple, 'H': Honey}
         self.player_start_position = None
 
@@ -395,6 +396,98 @@ class Level:
 
     def __repr__(self) -> str:
         return self.__class__.__name__ + f"({self.dimensions})"
+
+
+class Model:
+    def __init__(self, game_file: str) -> None:
+        self.game_file = game_file
+        self.levels = load_game(game_file)
+        self.player = Player(self.levels[0].get_player_start())
+        self.won = False
+        self.lost = False
+        self.current_level = 0
+        self.just_level_up = False
+        self.steps = 0
+        self.item_pool = {'C': Coin, 'M': Potion,
+                          'W': Water, 'A': Apple, 'H': Honey}
+
+    def has_won(self) -> bool:
+        return self.won
+
+    def has_lost(self) -> bool:
+        return self.lost
+
+    def get_level(self) -> Level:
+        return self.levels[self.current_level]
+
+    def level_up(self) -> None:
+        self.current_level += 1
+        if self.current_level >= len(self.levels):
+            self.won = True
+            self.lost = False
+        else:
+            self.just_level_up = True
+
+    def did_level_up(self) -> bool:
+        return self.just_level_up
+
+    def move_player(self, delta: tuple[int, int]) -> None:
+        level = self.get_level()
+        player_start = level.get_player_start()
+        if player_start is None:
+            return
+        new_position = (player_start[0] + delta[0], player_start[1] + delta[1])
+        if new_position[0] < 0 or new_position[0] >= level.get_dimensions()[0]:
+            return
+        if new_position[1] < 0 or new_position[1] >= level.get_dimensions()[1]:
+            return
+        if isinstance(level.get_maze().get_tile(new_position), Wall):
+            return
+        elif isinstance(level.get_maze().get_tile(new_position), Lava):
+            self.player.change_health(LAVA_DAMAGE)
+            return
+        elif new_position in level.get_items():
+            self.attempt_collect_item(new_position)
+            self.player.change_health(-1)
+            self.steps += 1
+            if self.steps % 5 == 0:
+                self.player.change_hunger(1)
+                self.player.change_thirst(1)
+        # update player's health
+        if self.player.get_health() <= 0 or self.player.get_hunger() >= MAX_HUNGER or self.player.get_thirst() >= MAX_THIRST:
+            self.lost = True
+            return
+        self.player.set_position(new_position)
+        level.add_entity(new_position, PLAYER)
+        level.remove_item(player_start)
+        # level.attempt_unlock_door()
+
+    def attempt_collect_item(self, position: tuple[int, int]) -> None:
+        level = self.get_level()
+        self.player.add_item(level.get_items()[position])
+        level.remove_item(position)
+        level.attempt_unlock_door()
+
+    def get_player(self) -> Player:
+        return self.player
+
+    def get_player_stats(self) -> tuple[int, int, int]:
+        return self.player.get_health(), self.player.get_hunger(), self.player.get_thirst()
+
+    def get_player_inventory(self) -> Inventory:
+        return self.player.get_inventory()
+
+    def get_current_maze(self) -> Maze:
+        return self.get_level().get_maze()
+
+    def get_current_items(self) -> dict[tuple[int, int], Item]:
+        return self.get_level().get_items()
+
+    def __str__(self) -> str:
+        return self.__class__.__name__ + f"({self.game_file})"
+
+    def __repr__(self) -> str:
+        return str(self)
 
 
 def main():
