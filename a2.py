@@ -293,6 +293,50 @@ class Inventory:
         return self.__class__.__name__ + "(initial_items=" + str(self.initial_items) + ")"
 
 
+class Maze:
+    def __init__(self, dimensions: tuple[int, int]) -> None:
+        self.dimensions = dimensions
+        self.maze = []
+        self.tile_pool = {LAVA: Lava, WALL: Wall, EMPTY: Empty, DOOR: Door}
+
+    def get_dimensions(self) -> tuple[int, int]:
+        return self.dimensions
+
+    def add_row(self, row: str) -> None:
+        assert len(row) == self.dimensions[1] and len(
+            self.maze) < self.dimensions[0]
+        real_row = []
+        for tile in row:
+            if tile in self.tile_pool:
+                real_row.append(self.tile_pool[tile]())
+            else:
+                real_row.append(self.tile_pool[EMPTY]())
+        self.maze.append(real_row)
+
+    def get_tiles(self) -> list[list[Tile]]:
+        return self.maze
+
+    def unlock_door(self) -> None:
+        for row in self.maze:
+            for tile in row:
+                if isinstance(tile, Door):
+                    tile.unlock()
+
+    def get_tile(self, position: tuple[int, int]) -> Tile:
+        return self.maze[position[0]][position[1]]
+
+    def __str__(self) -> str:
+        rtn = ""
+        for row in self.maze:
+            for tile in row:
+                rtn += str(tile)
+            rtn += "\n"
+        return rtn
+
+    def __repr__(self) -> str:
+        return self.__class__.__name__ + f"{self.dimensions}"
+
+
 def main():
     # Write your code here
     pass
