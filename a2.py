@@ -334,7 +334,67 @@ class Maze:
         return rtn
 
     def __repr__(self) -> str:
-        return self.__class__.__name__ + f"{self.dimensions}"
+        return self.__class__.__name__ + f"({self.dimensions})"
+
+
+class Level:
+    def __init__(self, dimenstions: tuple[int, int]) -> None:
+        self.dimensions = dimenstions
+        self.maze = Maze(self.dimensions)
+        self.items = {}
+        self.item_pool = {'C': Coin, 'M': Potion,
+                          'W': Water, 'A': Apple, 'H': Honey}
+        self.player_start_position = None
+
+    def get_maze(self) -> Maze:
+        return self.maze
+
+    def get_dimensions(self) -> tuple[int, int]:
+        return self.dimensions
+
+    def attempt_unlock_door(self) -> None:
+        all_items = self.get_items()
+        for item in all_items:
+            if isinstance(all_items[item], Coin):
+                return
+        self.maze.unlock_door()
+
+    def add_row(self, row: str) -> None:
+        self.maze.add_row(row)
+        row_no = len(self.maze.get_tiles()) - 1
+        for col_no, element in enumerate(row):
+            if element in self.item_pool:
+                self.items[(row_no, col_no)] = self.item_pool[element](
+                    (row_no, col_no))
+            if element == PLAYER:
+                self.add_player_start((row_no, col_no))
+
+    def add_entity(self, position: tuple[int, int], entity_id: str) -> None:
+        if entity_id in self.item_pool:
+            self.items[position] = self.item_pool[entity_id](position)
+
+    def get_items(self) -> dict[tuple[int, int], Item]:
+        return self.items
+
+    def remove_item(self, position: tuple[int, int]) -> None:
+        if self.items[position].get_id() in self.item_pool:
+            del self.items[position]
+
+    def add_player_start(self, position: tuple[int, int]) -> None:
+        self.player_start_position = position
+
+    def get_player_start(self) -> Optional[tuple[int, int]]:
+        return self.player_start_position
+
+    def __str__(self) -> str:
+        rtn = "Maze:\n"
+        rtn += str(self.maze)
+        rtn += f"Items:{self.items}\n"
+        rtn += f"Player start: {self.get_player_start()}\n"
+        return rtn
+
+    def __repr__(self) -> str:
+        return self.__class__.__name__ + f"({self.dimensions})"
 
 
 def main():
